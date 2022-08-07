@@ -102,7 +102,7 @@ class AppFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
     def CreateDVC(self, parent):
-        dvc = dv.DataViewCtrl(parent, style=wx.BORDER_THEME)
+        dvc = dv.DataViewCtrl(parent, style=wx.NO_BORDER | dv.DV_HORIZ_RULES | dv.DV_VERT_RULES | dv.DV_SINGLE)
         dvc.AppendTextColumn("Date/Time", 0, width=150)
         dvc.AppendTextColumn("Stream", 1, width=60)
         dvc.AppendTextColumn("Layer", 2, width=50)  # CAN, TCP/IP, DoIP, UDS
@@ -165,18 +165,23 @@ class MyFileDropTarget(wx.FileDropTarget):
         data = self.window.logview.data
         data.clear()
         self.window.LogResetAfter(0)
-        for i in range(100):
+        for item in iterate(filenames):
             if self.abort:
                 wx.CallAfter(self.window.sbar.SetStatusText, "")
                 return
-            data.append(["2020-02-03 12:20:30.334455", "ABC/DEF", "TCP", "Info", "Message", "Message Trigger"])
-            progress(i * 100 // 100)
+            data.append(item[2])
+            progress(item[0] * item[1] // 100)
             appended()
             time.sleep(0.2)
         progress(100)
         time.sleep(1)
         progress(0)
         wx.CallAfter(self.window.sbar.SetStatusText, "")
+
+
+def iterate(filenames):
+    for i in range(100):
+        yield (i, 100, ["2020-02-03 12:20:30.334455", "ABC/DEF", "TCP", "Info", "Message", "Message Trigger"])
 
 
 def main():
