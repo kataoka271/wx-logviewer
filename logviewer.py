@@ -1,6 +1,6 @@
 import threading
 import time
-from typing import Any
+from typing import Any, Callable, Iterator, Sequence
 
 import wx
 import wx.dataview as dv
@@ -88,16 +88,19 @@ class CustomStatusBar(wx.StatusBar):
         self.sizeChanged = False
 
 
+LogFunc = Callable[[list[str]], Iterator[tuple[int, int, Sequence[Any]]]]
+
+
 class AppFrame(wx.Frame):
 
-    def __init__(self, parent, *args, **kw):
-        super().__init__(parent, *args, **kw)
+    def __init__(self, parent, title, size, logfunc: LogFunc):
+        super().__init__(parent, title=title, size=size)
         self.logview = LogView([])
         self.dvc = self.CreateDVC(self)
         self.dvc.AssociateModel(self.logview)
         self.sbar = CustomStatusBar(self)
         self.SetStatusBar(self.sbar)
-        self.drop = MyFileDropTarget(self)
+        self.drop = MyFileDropTarget(self, logfunc)
         self.SetDropTarget(self.drop)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
@@ -139,11 +142,12 @@ class AppFrame(wx.Frame):
 
 class MyFileDropTarget(wx.FileDropTarget):
 
-    def __init__(self, window: AppFrame):
+    def __init__(self, window: AppFrame, logfunc: LogFunc):
         super().__init__()
         self.window = window
         self.th = None
         self.abort = False
+        self.logfunc = logfunc
 
     def OnDropFiles(self, x, y, filenames):
         self.Abort()
@@ -165,7 +169,7 @@ class MyFileDropTarget(wx.FileDropTarget):
         data = self.window.logview.data
         data.clear()
         self.window.LogResetAfter(0)
-        for item in iterate(filenames):
+        for item in self.logfunc(filenames):
             if self.abort:
                 wx.CallAfter(self.window.sbar.SetStatusText, "")
                 return
@@ -179,14 +183,14 @@ class MyFileDropTarget(wx.FileDropTarget):
         wx.CallAfter(self.window.sbar.SetStatusText, "")
 
 
-def iterate(filenames):
+def logfunc(filenames):
     for i in range(100):
         yield (i, 100, ["2020-02-03 12:20:30.334455", "ABC/DEF", "TCP", "Info", "Message", "Message Trigger"])
 
 
 def main():
     app = wx.App()
-    frame = AppFrame(None, title="LogViewer", size=(1200, 800))
+    frame = AppFrame(None, title="LogViewer", size=(1200, 800), logfunc=logfunc)
     frame.Show()
     app.MainLoop()
 
