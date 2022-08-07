@@ -3,6 +3,7 @@ import random
 import time
 from multiprocessing import Pool
 from multiprocessing.pool import AsyncResult
+from typing import Callable, Iterator, TypeVar
 
 
 def long_time_task(name, buff):
@@ -33,6 +34,25 @@ def dispatcher():
     p.join()
     end = time.time()
     print('All subprocesses done. {} seconds.'.format(end - start))
+
+
+T = TypeVar("T")
+
+
+def map_chunks(f: Callable[[str, int, int, bytearray], list[T]], filenames: list[str]) -> Iterator[T]:
+    chunksize = 100_000_000
+    buffsize = 10_000_000
+    buff = bytearray(buffsize)
+    p = Pool()
+    results: list[AsyncResult] = []
+    for filename in filenames:
+        filesize = os.path.getsize(filename)
+        for i in range(0, filesize, chunksize):
+            results.append(p.apply_async(f, args=(filename, i, i + chunksize, buff)))
+    for result in results:
+        ls = result.get()
+        for item in ls:
+            yield item
 
 
 if __name__ == "__main__":
